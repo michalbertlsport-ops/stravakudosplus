@@ -1,0 +1,29 @@
+YAML
+name: Strava Auto Kudos
+on:
+  schedule:
+    - cron: '0 */6 * * *' # Spustí se každých 6 hodin
+  workflow_dispatch: # Umožní spustit ručně tlačítkem
+
+jobs:
+  kudos:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Give Kudos
+        run: |
+          curl -X POST "https://www.strava.com/oauth/token" \
+            -d client_id=${{ secrets.STRAVA_CLIENT_ID }} \
+            -d client_secret=${{ secrets.STRAVA_CLIENT_SECRET }} \
+            -d refresh_token=${{ secrets.STRAVA_REFRESH_TOKEN }} \
+            -d grant_type=refresh_token \
+            -ko token.json
+          
+          ACCESS_TOKEN=$(cat token.json | grep -o '"access_token":[^,]*' | grep -o '[^"]*$')
+          
+          ACTIVITIES=$(curl -s -X GET "https://www.strava.com/api/v3/activities/following" \
+            -H "Authorization: Bearer $ACCESS_TOKEN")
+          
+          echo "$ACTIVITIES" | grep -o '"id":[0-9]*' | grep -o '[0-9]*' | while read -r id; do
+            curl -s -X POST "https://www.strava.com/api/v3/activities/$id/kudos" \
+              -H "Authorization: Bearer $ACCESS_TOKEN" > /dev/null
+          done
