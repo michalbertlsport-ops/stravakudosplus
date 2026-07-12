@@ -1,0 +1,36 @@
+name: Strava Auto Kudos
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  kudos:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Give Kudos
+        run: |
+          curl -X POST "https://www.strava.com/oauth/token" \
+            -d client_id=${{ secrets.STRAVA_CLIENT_ID }} \
+            -d client_secret=${{ secrets.STRAVA_CLIENT_SECRET }} \
+            -d refresh_token=${{ secrets.STRAVA_REFRESH_TOKEN }} \
+            -d grant_type=refresh_token \
+            -o token.json
+          
+          ACCESS_TOKEN=$(cat token.json | sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p')
+          
+          if [ -z "$ACCESS_TOKEN" ]; then
+            echo "Nepodařilo se získat přístupový token. Zkontroluj klíče v Secrets."
+            exit 1
+          fi
+          
+          ACTIVITIES=$(curl -s -X GET "https://www.strava.com/api/v3/activities/following" \
+            -H "Authorization: Bearer $ACCESS_TOKEN")
+          
+          echo "$ACTIVITIES" | sed -n 's/.*"id":\([0-9]*\),.*/\1/p' | while read -r id; do
+            if [ ! -z "$id" ]; then
+              echo "Posílám kudos pro aktivitu ID: $id"
+              curl -s -X POST "https://www.strava.com/api/v3/activities/$id/kudos" \
+                -H "Authorization: Bearer $ACCESS_TOKEN" > /dev/null
+            fi
+          done
