@@ -1,9 +1,9 @@
-name: Strava Auto Kudos Python
+name: Strava Auto Kudos Klub Python
 
 on:
   workflow_dispatch: # Spuštění ručně tlačítkem
   schedule:
-    - cron: '0 */2 * * *' # Spustí se automaticky každé 2 hodiny
+    - cron: '0 */2 * * *' # Každé 2 hodiny automaticky
 
 jobs:
   kudos:
@@ -15,7 +15,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-python-version: '3.10'
+          python-version: '3.10'
 
       - name: Install dependencies
         run: |
@@ -27,10 +27,10 @@ jobs:
           STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
           STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
         run: |
-          python - c "
+          python -c "
           import os, requests
 
-          # 1. Získání čerstvého access tokenu
+          # 1. Získání access tokenu
           res = requests.post('https://www.strava.com/oauth/token', data={
               'client_id': os.environ['STRAVA_CLIENT_ID'],
               'client_secret': os.environ['STRAVA_CLIENT_SECRET'],
@@ -44,28 +44,35 @@ jobs:
           token = res['access_token']
           headers = {'Authorization': f'Bearer {token}'}
 
-          # 2. Načtení aktivit přátel (zkoušíme feed)
-          activities = requests.get('https://www.strava.com/api/v3/activities/following', headers=headers, params={'per_page': 20}).json()
+          # 2. Načtení aktivit z klubu Canyon
+          club_id = 'canyon'
+          print(f'Načítám aktivity z klubu: {club_id}')
+          
+          # Voláme klubový endpoint, který Strava neblokuje
+          url = f'https://www.strava.com/api/v3/clubs/{club_id}/activities'
+          activities = requests.get(url, headers=headers, params={'per_page': 10}).json()
 
           if not isinstance(activities, list):
-              print('Strava vrátila neplatná data nebo prázdný feed.'); exit(0)
+              print('Strava nevrátila seznam aktivit klubu. Možná nejsi členem nebo je klub soukromý.'); print(activities); exit(0)
 
-          print(f'Nalezeno {len(activities)} aktivit ve feedu.')
+          print(f'Nalezeno {len(activities)} aktivit v klubu.')
 
           # 3. Rozdávání kudos
           kudos_count = 0
           for act in activities:
               act_id = act['id']
-              athlete = act.get('athlete', {})
-              name = f\"{athlete.get('firstname', '')} {athlete.get('lastname', '')}\".strip() or 'Neznámý'
+              # U klubového API jsou jména v mírně jiné struktuře
+              firstname = act.get('athlete', {}).get('firstname', '')
+              lastname = act.get('athlete', {}).get('lastname', '')
+              name = f'{firstname} {lastname}'.strip() or 'Neznámý biker'
               
-              # Zkusíme poslat kudos
               kudo_res = requests.post(f'https://www.strava.com/api/v3/activities/{act_id}/kudos', headers=headers)
-              if kudo_res.status_code == 201 or kudo_res.status_code == 200:
+              
+              if kudo_res.status_code in [200, 201]:
                   print(f'Úspěšně odesláno kudos pro: {name} (Aktivita: {act_id})')
                   kudos_count += 1
               elif kudo_res.status_code == 403:
-                  # Často znamená, že už kudo bylo uděleno dříve
+                  # Už jsi palec dal dříve
                   pass
               else:
                   print(f'Nelze dát kudos pro {name} (Status: {kudo_res.status_code})')
