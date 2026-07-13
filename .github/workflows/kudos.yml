@@ -58,6 +58,10 @@ jobs:
               urls_to_check = [
                   'https://www.strava.com/dashboard',
                   'https://www.strava.com/clubs/canyon'
+                  'https://www.strava.com/dashboard?club_id=3812&feed_type=club'
+                  'https://www.strava.com/dashboard?club_id=189058&feed_type=club'
+                  'https://www.strava.com/dashboard?club_id=482331&feed_type=club'
+                  'https://www.strava.com/dashboard?club_id=1035794&feed_type=club'
               ]
 
               for url in urls_to_check:
