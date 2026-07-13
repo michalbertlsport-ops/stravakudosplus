@@ -3,7 +3,7 @@ name: Strava Auto Kudos Cookies Scraping
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0*/2 * * *' # Bude se spouštět automaticky jednou denně v 23:00, ale hlavní pro tebe bude ruční spuštění jednou týdně
+    - cron: '0*/2 * * *'# Spustí se automaticky každé 2 hodiny (v 0:00, 2:00, 4:00...)
 
 jobs:
   kudos:
