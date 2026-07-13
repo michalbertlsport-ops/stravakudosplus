@@ -1,7 +1,7 @@
 name: Strava Auto Kudos
 on:
   schedule:
-    - cron: '0 */4 * * *'
+      - cron: '0 */4 * * *'
   workflow_dispatch:
 
 jobs:
