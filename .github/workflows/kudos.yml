@@ -1,36 +1,74 @@
-name: Strava Auto Kudos
+name: Strava Auto Kudos Python
+
 on:
+  workflow_dispatch: # Spuštění ručně tlačítkem
   schedule:
-      - cron: '0 */4 * * *'
-  workflow_dispatch:
+    - cron: '0 */2 * * *' # Spustí se automaticky každé 2 hodiny
 
 jobs:
   kudos:
     runs-on: ubuntu-latest
     steps:
-      - name: Give Kudos
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-python-version: '3.10'
+
+      - name: Install dependencies
         run: |
-          curl -X POST "https://www.strava.com/oauth/token" \
-            -d client_id=${{ secrets.STRAVA_CLIENT_ID }} \
-            -d client_secret=${{ secrets.STRAVA_CLIENT_SECRET }} \
-            -d refresh_token=${{ secrets.STRAVA_REFRESH_TOKEN }} \
-            -d grant_type=refresh_token \
-            -o token.json
-          
-          ACCESS_TOKEN=$(cat token.json | sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p')
-          
-          if [ -z "$ACCESS_TOKEN" ]; then
-            echo "Nepodařilo se získat přístupový token. Zkontroluj klíče v Secrets."
-            exit 1
-          fi
-          
-          ACTIVITIES=$(curl -s -X GET "https://www.strava.com/api/v3/activities/following" \
-            -H "Authorization: Bearer $ACCESS_TOKEN")
-          
-          echo "$ACTIVITIES" | sed -n 's/.*"id":\([0-9]*\),.*/\1/p' | while read -r id; do
-            if [ ! -z "$id" ]; then
-              echo "Posílám kudos pro aktivitu ID: $id"
-              curl -s -X POST "https://www.strava.com/api/v3/activities/$id/kudos" \
-                -H "Authorization: Bearer $ACCESS_TOKEN" > /dev/null
-            fi
-          done
+          pip install requests
+
+      - name: Run Kudos Script
+        env:
+          STRAVA_CLIENT_ID: ${{ secrets.STRAVA_CLIENT_ID }}
+          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
+          STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
+        run: |
+          python - c "
+          import os, requests
+
+          # 1. Získání čerstvého access tokenu
+          res = requests.post('https://www.strava.com/oauth/token', data={
+              'client_id': os.environ['STRAVA_CLIENT_ID'],
+              'client_secret': os.environ['STRAVA_CLIENT_SECRET'],
+              'refresh_token': os.environ['STRAVA_REFRESH_TOKEN'],
+              'grant_type': 'refresh_token'
+          }).json()
+
+          if 'access_token' not in res:
+              print('Chyba autorizace. Zkontroluj tokeny!'); exit(1)
+
+          token = res['access_token']
+          headers = {'Authorization': f'Bearer {token}'}
+
+          # 2. Načtení aktivit přátel (zkoušíme feed)
+          activities = requests.get('https://www.strava.com/api/v3/activities/following', headers=headers, params={'per_page': 20}).json()
+
+          if not isinstance(activities, list):
+              print('Strava vrátila neplatná data nebo prázdný feed.'); exit(0)
+
+          print(f'Nalezeno {len(activities)} aktivit ve feedu.')
+
+          # 3. Rozdávání kudos
+          kudos_count = 0
+          for act in activities:
+              act_id = act['id']
+              athlete = act.get('athlete', {})
+              name = f\"{athlete.get('firstname', '')} {athlete.get('lastname', '')}\".strip() or 'Neznámý'
+              
+              # Zkusíme poslat kudos
+              kudo_res = requests.post(f'https://www.strava.com/api/v3/activities/{act_id}/kudos', headers=headers)
+              if kudo_res.status_code == 201 or kudo_res.status_code == 200:
+                  print(f'Úspěšně odesláno kudos pro: {name} (Aktivita: {act_id})')
+                  kudos_count += 1
+              elif kudo_res.status_code == 403:
+                  # Často znamená, že už kudo bylo uděleno dříve
+                  pass
+              else:
+                  print(f'Nelze dát kudos pro {name} (Status: {kudo_res.status_code})')
+
+          print(f'Celkem nově uděleno {kudos_count} palců.')
+          "
