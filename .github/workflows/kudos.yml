@@ -1,9 +1,9 @@
-name: Strava Auto Kudos Scraping
+name: Strava Auto Kudos Cookies Scraping
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 */2 * * *' # Každé 2 hodiny automaticky
+    - cron: '0 */2 * * *'
 
 jobs:
   kudos:
@@ -22,62 +22,63 @@ jobs:
           pip install playwright requests
           playwright install chromium --with-deps
 
-      - name: Run Kudos Scraping Script
+      - name: Run Kudos Cookie Script
         env:
-          STRAVA_EMAIL: ${{ secrets.STRAVA_EMAIL }}
-          STRAVA_PASSWORD: ${{ secrets.STRAVA_PASSWORD }}
+          STRAVA_COOKIE: ${{ secrets.STRAVA_COOKIE }}
         run: |
           python -c "
           import os, time
           from playwright.sync_api import sync_playwright
 
-          email = os.environ.get('STRAVA_EMAIL')
-          password = os.environ.get('STRAVA_PASSWORD')
+          cookie_value = os.environ.get('STRAVA_COOKIE')
 
-          if not email or not password:
-              print('Chyba: Chybí STRAVA_EMAIL nebo STRAVA_PASSWORD v Secrets!'); exit(1)
+          if not cookie_value:
+              print('Chyba: Chybí STRAVA_COOKIE v Secrets!'); exit(1)
 
           with sync_playwright() as p:
-              # Spustíme neviditelný prohlížeč
               browser = p.chromium.launch(headless=True)
-              page = browser.new_page()
-
-              # 1. Přihlášení na Stravu
-              print('Otevírám přihlašovací stránku Stravy...')
-              page.goto('https://www.strava.com/login')
+              context = browser.new_context(viewport={'width': 1280, 'height': 800})
               
-              page.fill('input[name=\"email\"]', email)
-              page.fill('input[name=\"password\"]', password)
-              page.click('button[id=\"login-button\"]')
+              # Podstrčíme prohlížeči přihlašovací cookie
+              context.add_cookies([{
+                  'name': '_strava4_session',
+                  'value': cookie_value,
+                  'domain': '.strava.com',
+                  'path': '/'
+              }])
               
-              # Počkáme na načtení hlavní stránky (feedu)
-              page.wait_for_url('https://www.strava.com/dashboard*', timeout=15000)
-              print('Přihlášení úspěšné, jsme na dashboardu!')
+              page = context.new_page()
 
-              # SEZNAM STRÁNEK, KTERÉ CHCEME PROKLIKAT
-              # Můžeš sem dát hlavní feed i adresy tvých klubů!
+              # Jdeme rovnou na dashboard, měli bychom být přihlášeni
+              print('Otevírám hlavní feed Stravy...')
+              page.goto('https://www.strava.com/dashboard')
+              time.sleep(4)
+
+              # SEZNAM STRÁNEK K PROKLIKÁNÍ
               urls_to_check = [
-                  'https://www.strava.com/dashboard',                     # Hlavní feed přátel
-                  'https://www.strava.com/clubs/canyon'                    # Klub Canyon (večer sem připíšeš další)
+                  'https://www.strava.com/dashboard',
+                  'https://www.strava.com/clubs/canyon'
               ]
 
               for url in urls_to_check:
                   print(f'\n--- Prohlížím stránku: {url} ---')
-                  page.goto(url)
-                  time.sleep(3) # Počkáme na načtení aktivit
+                  if page.url != url:
+                      page.goto(url)
+                      time.sleep(4)
 
-                  # Najdeme všechna tlačítka pro Kudos na stránce
-                  # Strava používá data-testid nebo třídy pro kudos tlačítka
-                  kudos_buttons = page.query_selector_all('button[data-testid=\"kudos_button\"], button[title=\"Give kudos\"], button:has-text(\"👍\")')
-                  print(f'Nalezeno {len(kudos_buttons)} potenciálních tlačítek pro kudos.')
+                  # Kontrola, zda nejsme na login stránce (vypršelá cookie)
+                  if 'login' in page.url:
+                      print('Chyba: Prohlížeč byl přesměrován na přihlášení. Cookie je neplatná nebo vypršela.'); break
+
+                  # Najdeme kudos tlačítka
+                  buttons = page.query_selector_all('button[data-testid=\"kudos_button\"], button[title=\"Give kudos\"], button:has-text(\"👍\")')
+                  print(f'Nalezeno {len(buttons)} tlačítek pro kudos.')
 
                   clicked_count = 0
-                  for index, btn in enumerate(kudos_buttons):
-                      # Zkontrolujeme, zda tlačítko už není stisknuté (vyplněný palec)
+                  for index, btn in enumerate(buttons):
                       svg = btn.query_selector('svg')
                       is_filled = False
                       if svg:
-                          # Často se mění barva nebo ID ikony, pokud už palec existuje
                           fill_attr = svg.get_attribute('fill')
                           if fill_attr and fill_attr != 'none' and 'currentColor' not in fill_attr:
                               is_filled = True
@@ -85,18 +86,15 @@ jobs:
                       if not is_filled:
                           try:
                               btn.scroll_into_view_if_needed()
-                              btn.click(timeout=2000)
+                              btn.click(timeout=3000)
                               clicked_count += 1
                               print(f'  [OK] Kliknuto na palec č. {index + 1}')
-                              time.sleep(1) # Pauza mezi klikáním
-                          except Exception as e:
+                              time.sleep(1.5)
+                          except Exception:
                               pass
-                      else:
-                          # Již uděleno dříve
-                          pass
 
                   print(f'Na této stránce nově doklikáno {clicked_count} palců.')
 
               browser.close()
-              print('\nHotovson! Všechny stránky byly zkontrolovány.')
+              print('\nParáda! Všechny stránky mechanicky proklikány.')
           "
