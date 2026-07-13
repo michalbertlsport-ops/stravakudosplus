@@ -3,7 +3,7 @@ name: Strava Auto Kudos Cookies Scraping
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 */2 * * *' # Spustí se automaticky každé 2 hodiny (v 0:00, 2:00, 4:00...)
+    - cron: '0 */2 * * *' # Spustí se automaticky každé 2 hodiny
 
 jobs:
   kudos:
@@ -27,7 +27,7 @@ jobs:
           STRAVA_COOKIE: ${{ secrets.STRAVA_COOKIE }}
         run: |
           python -c "
-          import os, time
+          import os, time, random
           from playwright.sync_api import sync_playwright
 
           cookie_value = os.environ.get('STRAVA_COOKIE')
@@ -51,7 +51,7 @@ jobs:
               # --- ZDE SI VŽDYCKY PŘEPLÁCNEŠ TU SVOJI PĚTKU KLUBŮ Z TEXTOVÉHO EDITORU ---
               urls_to_check = [
                   'https://www.strava.com/dashboard',
-                  'https://www.strava.com/clubs/canyon',
+                  'https://www.strava.com/dashboard?club_id=932688&feed_type=club',
                   'https://www.strava.com/dashboard?club_id=3812&feed_type=club',
                   'https://www.strava.com/dashboard?club_id=189058&feed_type=club',
                   'https://www.strava.com/dashboard?club_id=482331&feed_type=club'
@@ -85,8 +85,9 @@ jobs:
                               clicked_count += 1
                               print(f'  [OK] Kliknuto na palec č. {index + 1}')
                               
-                              # ZVĚTŠENÁ PAUZA: Teď skript počká 5 vteřin mezi každým kliknutím
-                              time.sleep(5)
+                              # PLOVOUCÍ ČAS: Vybere náhodné číslo od 3.0 do 6.0 vteřin
+                              random_pause = random.uniform(3, 7)
+                              time.sleep(random_pause)
                               
                           except Exception:
                               pass
