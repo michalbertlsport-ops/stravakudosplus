@@ -1,9 +1,9 @@
-name: Strava Auto Kudos Klub Python
+name: Strava Auto Kudos Scraping
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 */2 * * *'
+    - cron: '0 */2 * * *' # Každé 2 hodiny automaticky
 
 jobs:
   kudos:
@@ -17,75 +17,86 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
+      - name: Install Playwright and dependencies
         run: |
-          pip install requests
+          pip install playwright requests
+          playwright install chromium --with-deps
 
-      - name: Run Kudos Script
+      - name: Run Kudos Scraping Script
         env:
-          STRAVA_CLIENT_ID: ${{ secrets.STRAVA_CLIENT_ID }}
-          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
-          STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
+          STRAVA_EMAIL: ${{ secrets.STRAVA_EMAIL }}
+          STRAVA_PASSWORD: ${{ secrets.STRAVA_PASSWORD }}
         run: |
           python -c "
-          import os, requests, time
+          import os, time
+          from playwright.sync_api import sync_playwright
 
-          # 1. Získání access tokenu
-          res = requests.post('https://www.strava.com/oauth/token', data={
-              'client_id': os.environ['STRAVA_CLIENT_ID'],
-              'client_secret': os.environ['STRAVA_CLIENT_SECRET'],
-              'refresh_token': os.environ['STRAVA_REFRESH_TOKEN'],
-              'grant_type': 'refresh_token'
-          }).json()
+          email = os.environ.get('STRAVA_EMAIL')
+          password = os.environ.get('STRAVA_PASSWORD')
 
-          if 'access_token' not in res:
-              print('Chyba autorizace. Zkontroluj tokeny!'); exit(1)
+          if not email or not password:
+              print('Chyba: Chybí STRAVA_EMAIL nebo STRAVA_PASSWORD v Secrets!'); exit(1)
 
-          token = res['access_token']
-          headers = {'Authorization': f'Bearer {token}'}
+          with sync_playwright() as p:
+              # Spustíme neviditelný prohlížeč
+              browser = p.chromium.launch(headless=True)
+              page = browser.new_page()
 
-          # SEZNAM TVÝCH KLUBŮ - sem večer dopiš další
-          clubs = ['canyon']
-
-          total_kudos = 0
-
-          for club_id in clubs:
-              print(f'--- Načítám aktivity z klubu: {club_id} ---')
+              # 1. Přihlášení na Stravu
+              print('Otevírám přihlašovací stránku Stravy...')
+              page.goto('https://www.strava.com/login')
               
-              url = f'https://www.strava.com/api/v3/clubs/{club_id}/activities'
-              activities = requests.get(url, headers=headers, params={'per_page': 7}).json()
+              page.fill('input[name=\"email\"]', email)
+              page.fill('input[name=\"password\"]', password)
+              page.click('button[id=\"login-button\"]')
+              
+              # Počkáme na načtení hlavní stránky (feedu)
+              page.wait_for_url('https://www.strava.com/dashboard*', timeout=15000)
+              print('Přihlášení úspěšné, jsme na dashboardu!')
 
-              if not isinstance(activities, list):
-                  print(f'Z klubu {club_id} se nepodařilo načíst data.')
-                  continue
+              # SEZNAM STRÁNEK, KTERÉ CHCEME PROKLIKAT
+              # Můžeš sem dát hlavní feed i adresy tvých klubů!
+              urls_to_check = [
+                  'https://www.strava.com/dashboard',                     # Hlavní feed přátel
+                  'https://www.strava.com/clubs/canyon'                    # Klub Canyon (večer sem připíšeš další)
+              ]
 
-              print(f'Nalezeno {len(activities)} aktivit k prověření.')
+              for url in urls_to_check:
+                  print(f'\n--- Prohlížím stránku: {url} ---')
+                  page.goto(url)
+                  time.sleep(3) # Počkáme na načtení aktivit
 
-              for act in activities:
-                  # Získáváme pravé ID aktivity z jejího detailu
-                  # Klubové aktivity mají specifickou strukturu, ID bývá jako int/float
-                  club_act_id = act.get('id')
-                  if not club_act_id:
-                      continue
+                  # Najdeme všechna tlačítka pro Kudos na stránce
+                  # Strava používá data-testid nebo třídy pro kudos tlačítka
+                  kudos_buttons = page.query_selector_all('button[data-testid=\"kudos_button\"], button[title=\"Give kudos\"], button:has-text(\"👍\")')
+                  print(f'Nalezeno {len(kudos_buttons)} potenciálních tlačítek pro kudos.')
 
-                  firstname = act.get('athlete', {}).get('firstname', '')
-                  lastname = act.get('athlete', {}).get('lastname', '')
-                  name = f'{firstname} {lastname}'.strip() or 'Biker'
+                  clicked_count = 0
+                  for index, btn in enumerate(kudos_buttons):
+                      # Zkontrolujeme, zda tlačítko už není stisknuté (vyplněný palec)
+                      svg = btn.query_selector('svg')
+                      is_filled = False
+                      if svg:
+                          # Často se mění barva nebo ID ikony, pokud už palec existuje
+                          fill_attr = svg.get_attribute('fill')
+                          if fill_attr and fill_attr != 'none' and 'currentColor' not in fill_attr:
+                              is_filled = True
 
-                  # Zkusíme poslat kudos přímo na zjištěné ID
-                  kudo_res = requests.post(f'https://www.strava.com/api/v3/activities/{club_act_id}/kudos', headers=headers)
-                  
-                  if kudo_res.status_code in [200, 201]:
-                      print(f'  [OK] Úspěšně udělen palec pro: {name}')
-                      total_kudos += 1
-                  elif kudo_res.status_code == 403:
-                      # Již uděleno dříve
-                      pass
-                  else:
-                      print(f'  [Info] Aktivita {club_act_id} ({name}) vrátila status {kudo_res.status_code}')
-                  
-                  # Drobná pauza, ať Stravu nenaštveme rychlými požadavky
-                  time.sleep(0.5)
+                      if not is_filled:
+                          try:
+                              btn.scroll_into_view_if_needed()
+                              btn.click(timeout=2000)
+                              clicked_count += 1
+                              print(f'  [OK] Kliknuto na palec č. {index + 1}')
+                              time.sleep(1) # Pauza mezi klikáním
+                          except Exception as e:
+                              pass
+                      else:
+                          # Již uděleno dříve
+                          pass
 
-          print(f'=== Akce dokončena. Celkem nově rozdáno {total_kudos} palců. ===')
+                  print(f'Na této stránce nově doklikáno {clicked_count} palců.')
+
+              browser.close()
+              print('\nHotovson! Všechny stránky byly zkontrolovány.')
           "
