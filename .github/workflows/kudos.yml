@@ -3,7 +3,7 @@ name: Strava Auto Kudos Cookies Scraping
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 */2 * * *'
+    - cron: '0 23 * * *' # Bude se spouštět automaticky jednou denně v 23:00, ale hlavní pro tebe bude ruční spuštění jednou týdně
 
 jobs:
   kudos:
@@ -39,7 +39,6 @@ jobs:
               browser = p.chromium.launch(headless=True)
               context = browser.new_context(viewport={'width': 1280, 'height': 800})
               
-              # Podstrčíme prohlížeči přihlašovací cookie
               context.add_cookies([{
                   'name': '_strava4_session',
                   'value': cookie_value,
@@ -49,32 +48,24 @@ jobs:
               
               page = context.new_page()
 
-              # Jdeme rovnou na dashboard, měli bychom být přihlášeni
-              print('Otevírám hlavní feed Stravy...')
-              page.goto('https://www.strava.com/dashboard')
-              time.sleep(4)
-
-              # SEZNAM STRÁNEK K PROKLIKÁNÍ
+              # --- ZDE SI VŽDYCKY PŘEPLÁCNEŠ TU SVOJI PĚTKU KLUBŮ Z TEXTOVÉHO EDITORU ---
               urls_to_check = [
                   'https://www.strava.com/dashboard',
                   'https://www.strava.com/clubs/canyon',
                   'https://www.strava.com/dashboard?club_id=3812&feed_type=club',
                   'https://www.strava.com/dashboard?club_id=189058&feed_type=club',
-                  'https://www.strava.com/dashboard?club_id=482331&feed_type=club',
-                  'https://www.strava.com/dashboard?club_id=1035794&feed_type=club'
+                  'https://www.strava.com/dashboard?club_id=482331&feed_type=club'
               ]
 
               for url in urls_to_check:
                   print(f'\n--- Prohlížím stránku: {url} ---')
                   if page.url != url:
                       page.goto(url)
-                      time.sleep(4)
+                      time.sleep(5) # Čas na plné načtení stránky
 
-                  # Kontrola, zda nejsme na login stránce (vypršelá cookie)
                   if 'login' in page.url:
-                      print('Chyba: Prohlížeč byl přesměrován na přihlášení. Cookie je neplatná nebo vypršela.'); break
+                      print('Chyba: Prohlížeč byl přesměrován na přihlášení. Cookie vypršela.'); break
 
-                  # Najdeme kudos tlačítka
                   buttons = page.query_selector_all('button[data-testid=\"kudos_button\"], button[title=\"Give kudos\"], button:has-text(\"👍\")')
                   print(f'Nalezeno {len(buttons)} tlačítek pro kudos.')
 
@@ -93,12 +84,15 @@ jobs:
                               btn.click(timeout=3000)
                               clicked_count += 1
                               print(f'  [OK] Kliknuto na palec č. {index + 1}')
-                              time.sleep(1.5)
+                              
+                              # ZVĚTŠENÁ PAUZA: Teď skript počká 5 vteřin mezi každým kliknutím
+                              time.sleep(5)
+                              
                           except Exception:
                               pass
 
                   print(f'Na této stránce nově doklikáno {clicked_count} palců.')
 
               browser.close()
-              print('\nParáda! Všechny stránky mechanicky proklikány.')
+              print('\nParáda! Všechny stránky mechanicky proklikány s lidskou pauzou.')
           "
