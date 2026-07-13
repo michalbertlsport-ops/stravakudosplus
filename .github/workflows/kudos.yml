@@ -28,7 +28,7 @@ jobs:
           STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
         run: |
           python -c "
-          import os, requests
+          import os, requests, time
 
           # 1. Získání access tokenu
           res = requests.post('https://www.strava.com/oauth/token', data={
@@ -44,39 +44,48 @@ jobs:
           token = res['access_token']
           headers = {'Authorization': f'Bearer {token}'}
 
-          # 2. Načtení aktivit z klubu Canyon
-          club_id = 'canyon'
-          print(f'Načítám aktivity z klubu: {club_id}')
-          
-          url = f'https://www.strava.com/api/v3/clubs/{club_id}/activities'
-          activities = requests.get(url, headers=headers, params={'per_page': 10}).json()
+          # SEZNAM TVÝCH KLUBŮ - sem večer dopiš další
+          clubs = ['canyon']
 
-          if not isinstance(activities, list):
-              print('Strava nevrátila seznam aktivit klubu.'); print(activities); exit(0)
+          total_kudos = 0
 
-          print(f'Nalezeno {len(activities)} aktivit v klubu.')
+          for club_id in clubs:
+              print(f'--- Načítám aktivity z klubu: {club_id} ---')
+              
+              url = f'https://www.strava.com/api/v3/clubs/{club_id}/activities'
+              activities = requests.get(url, headers=headers, params={'per_page': 7}).json()
 
-          # 3. Rozdávání kudos
-          kudos_count = 0
-          for act in activities:
-              # Oprava: Klubové API může mít ID jako 'id' nebo uvnitř jiných polí, raději to pojistíme
-              act_id = act.get('id') or act.get('activity_id')
-              if not act_id:
+              if not isinstance(activities, list):
+                  print(f'Z klubu {club_id} se nepodařilo načíst data.')
                   continue
-                  
-              firstname = act.get('athlete', {}).get('firstname', '')
-              lastname = act.get('athlete', {}).get('lastname', '')
-              name = f'{firstname} {lastname}'.strip() or 'Neznámý biker'
-              
-              kudo_res = requests.post(f'https://www.strava.com/api/v3/activities/{act_id}/kudos', headers=headers)
-              
-              if kudo_res.status_code in [200, 201]:
-                  print(f'Úspěšně odesláno kudos pro: {name} (Aktivita: {act_id})')
-                  kudos_count += 1
-              elif kudo_res.status_code == 403:
-                  print(f'Kudos pro {name} již bylo uděleno dříve.')
-              else:
-                  print(f'Nelze dát kudos pro {name} (Status: {kudo_res.status_code})')
 
-          print(f'Celkem nově uděleno {kudos_count} palců.')
+              print(f'Nalezeno {len(activities)} aktivit k prověření.')
+
+              for act in activities:
+                  # Získáváme pravé ID aktivity z jejího detailu
+                  # Klubové aktivity mají specifickou strukturu, ID bývá jako int/float
+                  club_act_id = act.get('id')
+                  if not club_act_id:
+                      continue
+
+                  firstname = act.get('athlete', {}).get('firstname', '')
+                  lastname = act.get('athlete', {}).get('lastname', '')
+                  name = f'{firstname} {lastname}'.strip() or 'Biker'
+
+                  # Zkusíme poslat kudos přímo na zjištěné ID
+                  kudo_res = requests.post(f'https://www.strava.com/api/v3/activities/{club_act_id}/kudos', headers=headers)
+                  
+                  if kudo_res.status_code in [200, 201]:
+                      print(f'  [OK] Úspěšně udělen palec pro: {name}')
+                      total_kudos += 1
+                  elif kudo_res.status_code == 403:
+                      # Již uděleno dříve
+                      pass
+                  else:
+                      print(f'  [Info] Aktivita {club_act_id} ({name}) vrátila status {kudo_res.status_code}')
+                  
+                  # Drobná pauza, ať Stravu nenaštveme rychlými požadavky
+                  time.sleep(0.5)
+
+          print(f'=== Akce dokončena. Celkem nově rozdáno {total_kudos} palců. ===')
           "
