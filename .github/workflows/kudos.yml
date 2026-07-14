@@ -35,6 +35,10 @@ jobs:
           if not cookie_value:
               print('Chyba: Chybí STRAVA_COOKIE v Secrets!'); exit(1)
 
+          # --- NASTAVENÍ MAXIMÁLNÍHO STROPU LAJKŮ ---
+          MAX_TOTAL_KUDOS = 25
+          total_kudos_given = 0
+
           with sync_playwright() as p:
               browser = p.chromium.launch(headless=True)
               context = browser.new_context(viewport={'width': 1280, 'height': 800})
@@ -59,6 +63,11 @@ jobs:
               ]
 
               for url in urls_to_check:
+                  # Pojistka: Pokud jsme již dosáhli celkového limitu, nebudeme otevírat další stránky
+                  if total_kudos_given >= MAX_TOTAL_KUDOS:
+                      print(f'\n[STOP] Dosažen celkový strop {MAX_TOTAL_KUDOS} kudos. Přeskakuji zbytek adres.')
+                      break
+
                   print(f'\n--- Prohlížím stránku: {url} ---')
                   if page.url != url:
                       page.goto(url)
@@ -72,6 +81,11 @@ jobs:
 
                   clicked_count = 0
                   for index, btn in enumerate(buttons):
+                      # Pojistka uvnitř klikací smyčky
+                      if total_kudos_given >= MAX_TOTAL_KUDOS:
+                          print(f'  [STOP] Dosáhli jsme limitu {MAX_TOTAL_KUDOS} kudos během klikání na této stránce.')
+                          break
+
                       svg = btn.query_selector('svg')
                       is_filled = False
                       if svg:
@@ -84,9 +98,10 @@ jobs:
                               btn.scroll_into_view_if_needed()
                               btn.click(timeout=3000)
                               clicked_count += 1
-                              print(f'  [OK] Kliknuto na palec č. {index + 1}')
+                              total_kudos_given += 1
+                              print(f'  [OK] Kliknuto na palec (Celkem v tomto běhu: {total_kudos_given}/{MAX_TOTAL_KUDOS})')
                               
-                              # PLOVOUCÍ ČAS: Vybere náhodné číslo od 3.0 do 6.0 vteřin
+                              # PLOVOUCÍ ČAS: Vybere náhodné číslo od 3.0 do 7.0 vteřin
                               random_pause = random.uniform(3, 7)
                               time.sleep(random_pause)
                               
@@ -96,5 +111,5 @@ jobs:
                   print(f'Na této stránce nově doklikáno {clicked_count} palců.')
 
               browser.close()
-              print('\nParáda! Všechny stránky mechanicky proklikány s lidskou pauzou.')
+              print(f'\nHotovo! Celkem v tomto běhu rozdáno {total_kudos_given} kudos.')
           "
