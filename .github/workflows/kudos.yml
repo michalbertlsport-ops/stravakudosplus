@@ -36,7 +36,7 @@ jobs:
               print('Chyba: Chybí STRAVA_COOKIE v Secrets!'); exit(1)
 
           # --- NASTAVENÍ MAXIMÁLNÍHO STROPU LAJKŮ ---
-          MAX_TOTAL_KUDOS = 25
+          MAX_TOTAL_KUDOS = 50
           total_kudos_given = 0
 
           with sync_playwright() as p:
