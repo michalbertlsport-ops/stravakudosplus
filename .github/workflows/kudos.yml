@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
   repository_dispatch:
     types: [spust_presny_cron]
-  schedule:
-     # Tento klidně nech jako zálohu, kdyby náhodou
+
+     
 
 jobs:
   kudos:
