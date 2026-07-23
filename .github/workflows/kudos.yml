@@ -57,11 +57,11 @@ jobs:
               # --- ZDE SI VŽDYCKY PŘEPLÁCNEŠ TU SVOJI PĚTKU KLUBŮ Z TEXTOVÉHO EDITORU ---
               urls_to_check = [
                   'https://www.strava.com/dashboard',
-                  'https://www.strava.com/dashboard?club_id=932688&feed_type=club',
-                  'https://www.strava.com/dashboard?club_id=3812&feed_type=club',
+                  'https://www.strava.com/dashboard?club_id=5854&feed_type=club',
+                  'https://www.strava.com/dashboard?club_id=444155&feed_type=club',
                   'https://www.strava.com/dashboard?club_id=189058&feed_type=club',
-                  'https://www.strava.com/dashboard?club_id=482331&feed_type=club',
-                  'https://www.strava.com/dashboard?club_id=5854&feed_type=club&num_entries=40'
+                  'https://www.strava.com/dashboard?club_id=199266&feed_type=club',
+                  'https://www.strava.com/dashboard?club_id=1035794&feed_type=club'
               ]
 
               for url in urls_to_check:
