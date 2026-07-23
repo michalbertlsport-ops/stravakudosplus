@@ -40,7 +40,7 @@ jobs:
           total_kudos_given = 0
 
           # 1. Hlavní feed (přednostní sledovaní uživatelé)
-          main_feed = ['https://www.strava.com/dashboard']
+          main_feed = ['https://www.strava.com/dashboard?feed_type=following']
 
           # 2. Seznam klubů k náhodnému zamíchání
           club_urls = [
