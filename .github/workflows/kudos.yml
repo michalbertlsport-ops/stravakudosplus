@@ -5,8 +5,6 @@ on:
   repository_dispatch:
     types: [spust_presny_cron]
 
-     
-
 jobs:
   kudos:
     runs-on: ubuntu-latest
@@ -38,8 +36,51 @@ jobs:
               print('Chyba: Chybí STRAVA_COOKIE v Secrets!'); exit(1)
 
           # --- NASTAVENÍ MAXIMÁLNÍHO STROPU LAJKŮ ---
-          MAX_TOTAL_KUDOS = 25
+          MAX_TOTAL_KUDOS = 30
           total_kudos_given = 0
+
+          # 1. Hlavní feed (přednostní sledovaní uživatelé)
+          main_feed = ['https://www.strava.com/dashboard']
+
+          # 2. Seznam klubů k náhodnému zamíchání
+          club_urls = [
+              'https://www.strava.com/dashboard?club_id=701773&feed_type=club&num_entries=40',
+              'https://www.strava.com/dashboard?club_id=189058&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=166151&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=488583&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=782431&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=3812&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=444155&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=151404&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=199266&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=739056&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=105951&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=153357&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=120821&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=307721&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=932688&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=1339278&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=1026691&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=512154&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=291066&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=152064&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=1035794&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=1048584&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=218898&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=828597&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=1766323&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=482331&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=335325&feed_type=club'?
+              'https://www.strava.com/dashboard?club_id=41947&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=23199&feed_type=club',
+              
+          ]
+
+          # Zamícháme kluby, aby se pokaždé dostalo na jiné
+          random.shuffle(club_urls)
+
+          # Spojíme to dohromady: Nejdříve hlavní feed, pak zamíchané kluby
+          urls_to_check = main_feed + club_urls
 
           with sync_playwright() as p:
               browser = p.chromium.launch(headless=True)
@@ -53,16 +94,6 @@ jobs:
               }])
               
               page = context.new_page()
-
-              # --- ZDE SI VŽDYCKY PŘEPLÁCNEŠ TU SVOJI PĚTKU KLUBŮ Z TEXTOVÉHO EDITORU ---
-              urls_to_check = [
-                  'https://www.strava.com/dashboard',
-                  'https://www.strava.com/dashboard?club_id=5854&feed_type=club',
-                  'https://www.strava.com/dashboard?club_id=444155&feed_type=club',
-                  'https://www.strava.com/dashboard?club_id=189058&feed_type=club',
-                  'https://www.strava.com/dashboard?club_id=199266&feed_type=club',
-                  'https://www.strava.com/dashboard?club_id=1035794&feed_type=club'
-              ]
 
               for url in urls_to_check:
                   # Pojistka: Pokud jsme již dosáhli celkového limitu, nebudeme otevírat další stránky
