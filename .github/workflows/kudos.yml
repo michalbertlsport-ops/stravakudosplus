@@ -70,9 +70,9 @@ jobs:
               'https://www.strava.com/dashboard?club_id=828597&feed_type=club',
               'https://www.strava.com/dashboard?club_id=1766323&feed_type=club',
               'https://www.strava.com/dashboard?club_id=482331&feed_type=club',
-              'https://www.strava.com/dashboard?club_id=335325&feed_type=club'?
+              'https://www.strava.com/dashboard?club_id=335325&feed_type=club',
               'https://www.strava.com/dashboard?club_id=41947&feed_type=club',
-              'https://www.strava.com/dashboard?club_id=23199&feed_type=club',
+              'https://www.strava.com/dashboard?club_id=23199&feed_type=club'
               
           ]
 
