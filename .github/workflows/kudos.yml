@@ -35,8 +35,9 @@ jobs:
           if not cookie_value:
               print('Chyba: Chybí STRAVA_COOKIE v Secrets!'); exit(1)
 
-          # --- NASTAVENÍ MAXIMÁLNÍHO STROPU LAJKŮ ---
-          MAX_TOTAL_KUDOS = 30
+          # --- NASTAVENÍ NÁHODNÉHO STROPU LAJKŮ (20 až 40) ---
+          MAX_TOTAL_KUDOS = random.randint(20, 40)
+
           total_kudos_given = 0
 
           # 1. Hlavní feed (přednostní sledovaní uživatelé)
