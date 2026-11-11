@@ -20,7 +20,8 @@ jobs:
       - name: Install Playwright and dependencies
         run: |
           pip install playwright requests
-          playwright install chromium --with-deps
+          python -m playwright install chromium
+          
 
       - name: Run Kudos Cookie Script
         env:
