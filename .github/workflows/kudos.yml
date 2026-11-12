@@ -16,13 +16,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      - name: Install Playwright
+
+      - name: Install Playwright Browsers
         env:
           PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS: 'true'
         run: |
           pip install playwright requests
-          python -m playwright install --no-shell chromium
-          
+          python -m playwright install chromium
 
       - name: Run Kudos Cookie Script
         env:
@@ -79,13 +79,9 @@ jobs:
               'https://www.strava.com/dashboard?club_id=994834&feed_type=club',
               'https://www.strava.com/dashboard?club_id=102470&feed_type=club',
               'https://www.strava.com/dashboard?club_id=1049670&feed_type=club'
-              
           ]
 
-          # Zamícháme kluby, aby se pokaždé dostalo na jiné
           random.shuffle(club_urls)
-
-          # Spojíme to dohromady: Nejdříve hlavní feed, pak zamíchané kluby
           urls_to_check = main_feed + club_urls
 
           with sync_playwright() as p:
@@ -102,7 +98,6 @@ jobs:
               page = context.new_page()
 
               for url in urls_to_check:
-                  # Pojistka: Pokud jsme již dosáhli celkového limitu, nebudeme otevírat další stránky
                   if total_kudos_given >= MAX_TOTAL_KUDOS:
                       print(f'\n[STOP] Dosažen celkový strop {MAX_TOTAL_KUDOS} kudos. Přeskakuji zbytek adres.')
                       break
@@ -110,7 +105,7 @@ jobs:
                   print(f'\n--- Prohlížím stránku: {url} ---')
                   if page.url != url:
                       page.goto(url)
-                      time.sleep(5) # Čas na plné načtení stránky
+                      time.sleep(5)
 
                   if 'login' in page.url:
                       print('Chyba: Prohlížeč byl přesměrován na přihlášení. Cookie vypršela.'); break
@@ -120,7 +115,6 @@ jobs:
 
                   clicked_count = 0
                   for index, btn in enumerate(buttons):
-                      # Pojistka uvnitř klikací smyčky
                       if total_kudos_given >= MAX_TOTAL_KUDOS:
                           print(f'  [STOP] Dosáhli jsme limitu {MAX_TOTAL_KUDOS} kudos během klikání na této stránce.')
                           break
@@ -139,16 +133,10 @@ jobs:
                               clicked_count += 1
                               total_kudos_given += 1
                               print(f'  [OK] Kliknuto na palec (Celkem v tomto běhu: {total_kudos_given}/{MAX_TOTAL_KUDOS})')
-                              
-                              # PLOVOUCÍ ČAS: Vybere náhodné číslo od 3.0 do 7.0 vteřin
                               random_pause = random.uniform(3, 7)
                               time.sleep(random_pause)
-                              
                           except Exception:
                               pass
 
                   print(f'Na této stránce nově doklikáno {clicked_count} palců.')
-
-              browser.close()
-              print(f'\nHotovo! Celkem v tomto běhu rozdáno {total_kudos_given} kudos.')
           "
