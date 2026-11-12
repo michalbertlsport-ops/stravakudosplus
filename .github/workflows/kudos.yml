@@ -139,4 +139,7 @@ jobs:
                               pass
 
                   print(f'Na této stránce nově doklikáno {clicked_count} palců.')
+              
+              browser.close()
+              print(f'\nHotovo! Celkem v tomto běhu rozdáno {total_kudos_given} kudos.')
           "
